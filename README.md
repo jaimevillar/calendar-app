@@ -2026,8 +2026,8 @@ More information [here](https://reacttraining.com/react-router/web/api/BrowserRo
 <br>
 For example:
 ```js
-<BrowserRouter basename="/calendar"/>
-<Link to="/today"/> // renders <a href="/calendar/today">
+<BrowserRouter basename="/calendar.js"/>
+<Link to="/today"/> // renders <a href="/calendar.js/today">
 ```
 
 #### Serving the Same Build from Different Paths
