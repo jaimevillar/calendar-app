@@ -23,8 +23,8 @@ export default class Calendar extends React.Component {
         const { startDate, endDate, days } = nextProps;
 
         this.state.daysLimit = days;
-        this.state.startDate = startDate;
-        this.state.endDate = endDate;
+        this.state.startDate = new Date(startDate);
+        this.state.endDate = new Date(endDate);
 
         this.state.firstDay = new Date(startDate).getUTCDate();
         this.state.lastDay = new Date(endDate).getUTCDate();
@@ -57,6 +57,10 @@ export default class Calendar extends React.Component {
         let dateContext = this.state.dateContext;
         let firstDay = moment(dateContext).startOf('month').format('d');
         return firstDay;
+    };
+
+    daysInMonth = (month, year) => {
+      return new Date(year, month, 0).getDate();
     };
 
     setMonth = (month) => {
@@ -141,18 +145,18 @@ export default class Calendar extends React.Component {
             )
         });
 
-        var blanks = [];
+        var firstBlanks = [];
         if(this.state.firstDay <= 31 && this.state.firstDay > 0) {
 
             for (let i = 0; i < this.firstDayOfMonth(); i++) {
-                blanks.push(<td key={i * 80} className="empty-slot">
+                firstBlanks.push(<td key={i * 80} className="empty-slot">
                         {""}
                     </td>
                 );
             }
 
             for (let i = 1; i < this.state.firstDay; i++) {
-                blanks.push(<td key={i * 90} className="empty-slot">
+                firstBlanks.push(<td key={i * 90} className="empty-slot">
                         {""}
                     </td>
                 );
@@ -160,20 +164,18 @@ export default class Calendar extends React.Component {
 
         }
 
-        console.log("blanks: ", blanks);
+        // console.log("first blanks: ", firstBlanks);
 
         let daysInMonth = [];
-        let dayCount = 0;
-        let dateObj = new Date(this.state.startDate);
+        let dateObj = this.state.startDate;
         for (let d = this.state.firstDay; d <= this.state.lastDay; d++) {
 
             dateObj.setDate(dateObj.getDate() + 1);
-            let className = "day";
+            let className;
             if(dateObj.getDay() === 0 || dateObj.getDay() === 6){
-                console.info('weekend');
-                className = (d === this.currentDay() ? "day current-day": "week-end-day");
+                className = "week-end-day";
             } else {
-                className = (d === this.currentDay() ? "day current-day": "day");
+                className = "day";
             }
 
             daysInMonth.push(
@@ -181,11 +183,24 @@ export default class Calendar extends React.Component {
                     <span>{d}</span>
                 </td>
             );
-
-            console.info('date obj day: ', dateObj);
         }
 
-        var totalSlots = [...blanks, ...daysInMonth];
+        let lastBlanks = [];
+        // console.info('month: ', dateObj.getUTCMonth());
+        // console.info('first of last blanks: ', dateObj.getUTCDate());
+        // console.info('days in month: ', this.daysInMonth(dateObj.getUTCMonth() + 1, dateObj.getUTCFullYear()));
+        let lastBlanksSlot = this.daysInMonth(dateObj.getUTCMonth() + 1, dateObj.getUTCFullYear()) - (dateObj.getUTCDate() - 1);
+        console.info('last blanks slot: ', lastBlanksSlot);
+        if(lastBlanksSlot > 0) {
+            for (let i = 0; i <= lastBlanksSlot; i++) {
+                lastBlanks.push(<td key={i * 85} className="empty-slot">
+                        {""}
+                    </td>
+                );
+            }
+        }
+
+        let totalSlots = [...firstBlanks, ...daysInMonth, ...lastBlanks];
         let rows = [];
         let cells = [];
 
