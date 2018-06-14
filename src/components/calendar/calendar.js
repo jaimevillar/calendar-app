@@ -5,11 +5,11 @@ import './calendar.css';
 export default class Calendar extends React.Component {
     state = {
         dateContext: moment(),
-        daysLimit: null,
         startDate: null,
         endDate: null,
         firstDay: null,
         lastDay: null,
+        loading: true,
     };
 
     constructor(props) {
@@ -20,290 +20,219 @@ export default class Calendar extends React.Component {
     }
 
     componentWillReceiveProps = (nextProps) => {
-        const { startDate, endDate, days } = nextProps;
+        const { startDate, endDate } = nextProps;
 
-        this.state.daysLimit = days;
-        this.state.startDate = new Date(startDate);
-        this.state.endDate = new Date(endDate);
+        this.setState({
+           startDate,
+           endDate,
+           firstDay: new Date(startDate).getUTCDate(),
+           lastDay: new Date(endDate).getUTCDate(),
+        });
 
-        this.state.firstDay = new Date(startDate).getUTCDate();
-        this.state.lastDay = new Date(endDate).getUTCDate();
+        if(this.state.startDate !== null &&
+            this.state.endDate !== null) {
+            this.setState({
+               loading: false,
+            });
+        }
 
-        console.info('first day selected: ', this.state.firstDay);
-        console.info('last day selected: ', this.state.lastDay);
-        // console.info('state in calendar: ', this.state);
     };
 
     weekdaysShort = moment.weekdaysMin();
-    months = moment.months();
 
-    year = () => {
-        return this.state.dateContext.format("Y");
-    };
-    month = () => {
-        return this.state.dateContext.format("MMMM");
-    };
-    daysInMonth = () => {
-        return this.state.dateContext.daysInMonth();
-    };
-    currentDate = () => {
-        return this.state.dateContext.get("date");
-    };
-    currentDay = () => {
-        return this.state.dateContext.format("D");
-    };
-
-    firstDayOfMonth = () => {
-        let dateContext = this.state.dateContext;
-        let firstDay = moment(dateContext).startOf('month').format('d');
-        return firstDay;
+    firstDayOfMonth = (date) => {
+        return moment(date).startOf('month').format('d');
     };
 
     daysInMonth = (month, year) => {
       return new Date(year, month, 0).getDate();
     };
 
-    setMonth = (month) => {
-        let monthNo = this.months.indexOf(month);
-        let dateContext = Object.assign({}, this.state.dateContext);
-        dateContext = moment(dateContext).set("month", monthNo);
-        this.setState({
-            dateContext: dateContext
-        });
-    };
-
-    nextMonth = () => {
-        let dateContext = Object.assign({}, this.state.dateContext);
-        dateContext = moment(dateContext).add(1, "month");
-        this.setState({
-            dateContext: dateContext
-        });
-        this.props.onNextMonth && this.props.onNextMonth();
-    };
-
-    prevMonth = () => {
-        let dateContext = Object.assign({}, this.state.dateContext);
-        dateContext = moment(dateContext).subtract(1, "month");
-        this.setState({
-            dateContext: dateContext
-        });
-        this.props.onPrevMonth && this.props.onPrevMonth();
-    };
-
-    onSelectChange = (e, data) => {
-        this.setMonth(data);
-        this.props.onMonthChange && this.props.onMonthChange();
-
-    };
-
-    onChangeMonth = (e, month) => {
-        this.setState({
-            showMonthPopup: !this.state.showMonthPopup
-        });
-    };
-
-    MonthNav = () => {
-        return (
-            <span className="label-month"
-                  onClick={(e)=> {this.onChangeMonth(e, this.month())}}>
-                {this.month()}
-                {this.state.showMonthPopup &&
-                <this.SelectList data={this.months} />
-                }
-            </span>
-        );
-    };
-
-    showYearEditor = () => {
-        this.setState({
-            showYearNav: true
-        });
-    };
-
-    YearNav = () => {
-        return (
-            this.state.showYearNav ?
-                <input
-                    defaultValue = {this.year()}
-                    className="editor-year"
-                    ref={(yearInput) => { this.yearInput = yearInput}}
-                    type="number"
-                    placeholder="year"/>
-                :
-                <span
-                    className="label-year"
-                    onDoubleClick={(e)=> { this.showYearEditor()}}>
-                {this.year()}
-            </span>
-        );
-    };
-
     render() {
         let weekdays = this.weekdaysShort.map((day) => {
             return (
-                <td key={day} className="week-day">{day}</td>
+                <td key={day}>{day}</td>
             )
         });
 
-        var firstBlanks = [];
-        if(this.state.firstDay <= 31 && this.state.firstDay > 0) {
+        let firstDate = new Date(this.state.startDate);
+        firstDate.setHours(firstDate.getHours() + 10);
+        let lastDate = new Date(this.state.endDate);
+        lastDate.setHours(lastDate.getHours() + 10);
 
-            for (let i = 0; i < this.firstDayOfMonth(); i++) {
-                firstBlanks.push(<td key={i * 80} className="empty-slot">
-                        {""}
-                    </td>
-                );
-            }
+        let monthCount = 1;
+        let numMonths = numberMonths(firstDate, lastDate) ? numberMonths(firstDate, lastDate) : 1;
+        let monthsData = [];
+        let firstDay = this.state.firstDay;
+        let lastDay = this.state.lastDay;
+        let selectedMonth = firstDate.getMonth();
+        const monthNames = ["January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
 
-            for (let i = 1; i < this.state.firstDay; i++) {
-                firstBlanks.push(<td key={i * 90} className="empty-slot">
-                        {""}
-                    </td>
-                );
-            }
+        let dateObj = new Date(this.state.startDate);
+        let monthObj = new Date(this.state.startDate);
 
-        }
+        do {
 
-        // console.log("first blanks: ", firstBlanks);
+            let numDaysInMonth = this.daysInMonth(monthObj.getUTCMonth() + 1, monthObj.getUTCFullYear());
+            let firstDayOfMonth = this.firstDayOfMonth(monthObj);
+            let firstBlanks = [];
+            let daysInMonth = [];
+            let lastBlanks = [];
 
-        let daysInMonth = [];
-        let dateObj = this.state.startDate;
-        for (let d = this.state.firstDay; d <= this.state.lastDay; d++) {
-
-            dateObj.setDate(dateObj.getDate() + 1);
-            let className;
-            if(dateObj.getDay() === 0 || dateObj.getDay() === 6){
-                className = "week-end-day";
+            if(monthCount === 1){
+                let firstDayNum = firstDate.getUTCDay();
+                for (let i = 0; i < firstDayNum; i++) {
+                    firstBlanks.push(<td key={i * 90 * monthCount} className="empty-slot">
+                            {" "}
+                        </td>
+                    );
+                }
             } else {
-                className = "day";
+                for (let i = 0; i < firstDayOfMonth; i++) {
+                    firstBlanks.push(<td key={i * 80 * monthCount} className="empty-slot">
+                            {" "}
+                        </td>
+                    );
+                }
             }
 
-            daysInMonth.push(
-                <td key={d} className={className}>
-                    <span>{d}</span>
-                </td>
+            if(monthCount === 1) {
+                if(numMonths > 1) {
+                    dateObj = new Date(this.state.startDate);
+                    lastDay = numDaysInMonth;
+                } else {
+                    dateObj = new Date(this.state.startDate);
+                    lastDay = this.state.lastDay;
+                }
+            } else if (monthCount === numMonths) {
+                firstDay = 1;
+                lastDay = this.state.lastDay;
+                dateObj.setDate(0);
+            } else {
+                firstDay = 1;
+                lastDay = numDaysInMonth;
+                dateObj.setDate(0);
+            }
+
+            for (let d = firstDay; d <= lastDay; d++) {
+                dateObj.setDate(dateObj.getDate() + 1);
+                let className;
+                if(dateObj.getDay() === 0 || dateObj.getDay() === 6){
+                    className = "week-end-day";
+                } else {
+                    className = "day";
+                }
+                daysInMonth.push(
+                    <td key={d} className={className}>
+                        {d}
+                    </td>
+                );
+            }
+
+
+            let lastBlanksSlot = 6 - dateObj.getDay();
+            if(lastBlanksSlot > 0) {
+                for (let i = 0; i < lastBlanksSlot; i++) {
+                    lastBlanks.push(<td key={i * 85 * monthCount} className="empty-slot">
+                            {" "}
+                        </td>
+                    );
+                }
+            }
+
+            let totalSlots = [...firstBlanks, ...daysInMonth, ...lastBlanks];
+            let rows = [];
+            let cells = [];
+
+            totalSlots.forEach((row, i) => {
+                if ((i % 7) !== 0) {
+                    cells.push(row);
+                } else {
+                    let insertRow = cells.slice();
+                    rows.push(insertRow);
+                    cells = [];
+                    cells.push(row);
+                }
+                if (i === totalSlots.length - 1) {
+                    let insertRow = cells.slice();
+                    rows.push(insertRow);
+                }
+            });
+
+            let trElems = rows.map((d, i) => {
+                return (
+                    <tr key={i * monthCount}>
+                        {d}
+                    </tr>
+                );
+            });
+
+            monthsData.push(
+                <div className="calendar-month">
+                    <div className="calendar-header">
+                        {monthNames[selectedMonth] + " " + dateObj.getFullYear()}
+                    </div>
+                    <table className="calendar">
+                        <tbody>
+                        {trElems}
+                        </tbody>
+                    </table>
+                </div>
             );
-        }
 
-        let lastBlanks = [];
-        // console.info('month: ', dateObj.getUTCMonth());
-        // console.info('first of last blanks: ', dateObj.getUTCDate());
-        // console.info('days in month: ', this.daysInMonth(dateObj.getUTCMonth() + 1, dateObj.getUTCFullYear()));
-        let lastBlanksSlot = this.daysInMonth(dateObj.getUTCMonth() + 1, dateObj.getUTCFullYear()) - (dateObj.getUTCDate() - 1);
-        console.info('last blanks slot: ', lastBlanksSlot);
-        if(lastBlanksSlot > 0) {
-            for (let i = 0; i <= lastBlanksSlot; i++) {
-                lastBlanks.push(<td key={i * 85} className="empty-slot">
-                        {""}
-                    </td>
-                );
-            }
-        }
+            dateObj.setDate(1);
+            dateObj.setMonth(dateObj.getUTCMonth() + 1);
+            monthObj.setMonth(monthObj.getMonth() + 1);
+            monthCount++;
+            selectedMonth++;
+            selectedMonth = selectedMonth % 12;
+        } while (monthCount <= numMonths);
 
-        let totalSlots = [...firstBlanks, ...daysInMonth, ...lastBlanks];
-        let rows = [];
-        let cells = [];
-
-
-        totalSlots.forEach((row, i) => {
-            if ((i % 7) !== 0) {
-                cells.push(row);
-            } else {
-                let insertRow = cells.slice();
-                rows.push(insertRow);
-                cells = [];
-                cells.push(row);
-            }
-            if (i === totalSlots.length - 1) {
-                let insertRow = cells.slice();
-                rows.push(insertRow);
-            }
-        });
-
-        let trElems = rows.map((d, i) => {
+        let monthElems = monthsData.map((d, i) => {
             return (
-                <tr key={i*100}>
+                <div key={i*500}>
                     {d}
-                </tr>
+                </div>
             );
         });
-
-        /*
-
-        console.log("blanks: ", blanks);
-
-        let daysInMonth = [];
-        for (let d = 1; d <= this.daysInMonth(); d++) {
-            let className = (d === this.currentDay() ? "day current-day": "day");
-            daysInMonth.push(
-                <td key={d}>
-                    <span>{d}</span>
-                </td>
-            );
-        }
-
-
-        console.log("days: ", daysInMonth);
-
-        var totalSlots = [...blanks, ...daysInMonth];
-        let rows = [];
-        let cells = [];
-
-        totalSlots.forEach((row, i) => {
-            if ((i % 7) !== 0) {
-                cells.push(row);
-            } else {
-                let insertRow = cells.slice();
-                rows.push(insertRow);
-                cells = [];
-                cells.push(row);
-            }
-            if (i === totalSlots.length - 1) {
-                let insertRow = cells.slice();
-                rows.push(insertRow);
-            }
-        });
-
-        let trElems = rows.map((d, i) => {
-            return (
-                <tr key={i*100}>
-                    {d}
-                </tr>
-            );
-        });
-        */
 
         return (
             <div className="calendar-container">
-                <table className="calendar">
-                    <thead>
-                    <tr className="calendar-week-days">
-                        {weekdays}
-                    </tr>
-                    <tr className="calendar-header">
-                        <td colSpan="30">
-                            <this.MonthNav />
-                            {" "}
-                            <this.YearNav />
-                        </td>
-                        <td colSpan="2" className="nav-month">
-                            <i className="prev fa fa-fw fa-chevron-left"
-                               onClick={(e)=> {this.prevMonth()}}>
-                            </i>
-                            <i className="prev fa fa-fw fa-chevron-right"
-                               onClick={(e)=> {this.nextMonth()}}>
-                            </i>
+                {this.state.loading ? "Please fill the fields." :
+                    <div>
+                        <div className="calendar-month">
+                            <table className="calendar">
+                                <tbody>
+                                <tr>
+                                    {weekdays}
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
 
-                        </td>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {trElems}
-                    </tbody>
-                </table>
-
+                        <div>
+                            {monthElems}
+                        </div>
+                    </div>
+                }
             </div>
 
         );
     }
 }
+
+function numberMonths(date1, date2) {
+    let year1 = date1.getFullYear();
+    let year2 = date2.getFullYear();
+    let month1 = date1.getMonth();
+    let month2 = date2.getMonth();
+    if(month1===0){
+        month1++;
+        month2++;
+    }
+
+    return (year2 - year1) * 12 + (month2 - month1) + 1;
+}
+
